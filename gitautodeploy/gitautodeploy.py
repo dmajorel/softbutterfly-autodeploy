@@ -416,15 +416,21 @@ class GitAutoDeploy(object):
 
         try:
             import os
-            from autobahn.websocket import WebSocketServerProtocol, WebSocketServerFactory
+            from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
+            from twisted.internet.protocol import ClientFactory
             from twisted.internet import reactor, ssl
             from twisted.internet.error import BindError
+            import trollius as asyncio
+
+            class PatchedWebSocketServerFactory(ClientFactory, WebSocketServerFactory):
+                pass
 
             # Create a WebSocketClientHandler instance
             WebSocketClientHandler = WebSocketClientHandlerFactory(self._config, self._ws_clients, self._event_store, self._server_status)
 
             uri = u"ws://%s:%s" % (self._config['wss-host'], self._config['wss-port'])
-            factory = WebSocketServerFactory(uri)
+            loop = asyncio.new_event_loop()
+            factory = PatchedWebSocketServerFactory(uri, loop=loop)
             factory.protocol = WebSocketClientHandler
             # factory.setProtocolOptions(maxConnections=2)
 
@@ -448,10 +454,12 @@ class GitAutoDeploy(object):
             # Serve forever (until reactor.stop())
             reactor.run(installSignalHandlers=False)
 
-        except BindError as e:
-            self._startup_event.log_critical("Unable to start web socket server: %s" % e)
+            # this needs to be a part of an try-execpt block
+            # except BindError as e:
+            #     self._startup_event.log_critical("Unable to start web socket server: %s" % e)
 
-        except ImportError:
+        except ImportError as e:
+            raise(e)
             self._startup_event.log_error("Unable to start web socket server due to missing dependency.")
 
         event = SystemEvent()

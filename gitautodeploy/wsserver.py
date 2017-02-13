@@ -1,7 +1,7 @@
 from .events import SystemEvent
 
 try:
-    from autobahn.websocket import WebSocketServerProtocol
+    from autobahn.asyncio.websocket import WebSocketServerProtocol
 except ImportError:
     WebSocketServerProtocol = object
 
